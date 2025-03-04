@@ -1,1 +1,1 @@
-declare module '../components/AgenciesTable'; 
+declare module 'src/components/AgenciesTable'; 

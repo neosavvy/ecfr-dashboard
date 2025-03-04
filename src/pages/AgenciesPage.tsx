@@ -1,5 +1,5 @@
 import React from 'react';
-import { AgenciesTable } from '../components/AgenciesTable';
+import { AgenciesTable } from '../components/AgenciesTable.tsx';
 
 const AgenciesPage: React.FC = () => {
   return (

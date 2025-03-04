@@ -1,4 +1,3 @@
-import React from 'react';
 import { MetricInfo, MetricType } from '../types';
 import { BarChart as ChartBar } from 'lucide-react';
 
