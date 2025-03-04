@@ -1,19 +1,18 @@
-import { StrictMode } from 'react';
-import { createRoot } from 'react-dom/client';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import App from './App.tsx';
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import { BrowserRouter } from 'react-router-dom';
+import { AppRoutes } from './routes';
 import './index.css';
-import { ErrorBoundary } from './components/ErrorBoundary.tsx';
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
+// Add global styles to ensure dark background throughout the app
+import './styles.css';
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
     <BrowserRouter>
-      <ErrorBoundary>
-        <Routes>
-          <Route path="/" element={<App />} />
-          <Route path="/:metric" element={<App />} />
-        </Routes>
-      </ErrorBoundary>
+      <div className="bg-[#171c2e] min-h-screen">
+        <AppRoutes />
+      </div>
     </BrowserRouter>
-  </StrictMode>
+  </React.StrictMode>
 );

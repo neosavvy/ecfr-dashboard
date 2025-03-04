@@ -1,0 +1,11 @@
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #171c2e;
+  color: #ffffff;
+}
+
+#root {
+  min-height: 100vh;
+  background-color: #171c2e;
+} 
