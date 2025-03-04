@@ -52,32 +52,32 @@ export function AgenciesTable() {
   }
 
   return (
-    <div className="overflow-x-auto">
-      <table className="min-w-full divide-y divide-gray-700">
+    <div className="w-full">
+      <table className="w-full table-auto divide-y divide-gray-700">
         <thead className="bg-[#232939]">
           <tr>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">ID</th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Name</th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Short Name</th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Display Name</th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Slug</th>
+            <th scope="col" className="px-2 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-12 hidden sm:table-cell">ID</th>
+            <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Name</th>
+            <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider hidden md:table-cell">Short Name</th>
+            <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider hidden lg:table-cell">Display Name</th>
+            <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider hidden xl:table-cell">Slug</th>
           </tr>
         </thead>
         <tbody className="bg-[#1e2538] divide-y divide-gray-700">
           {agencies.length === 0 ? (
             <tr>
-              <td colSpan={5} className="px-6 py-4 text-center text-sm text-gray-400">
+              <td colSpan={5} className="px-3 py-4 text-center text-sm text-gray-400">
                 No agencies found
               </td>
             </tr>
           ) : (
             agencies.map((agency) => (
               <tr key={agency.id} className="hover:bg-[#252c40] transition-colors">
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{agency.id}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-100">{agency.name}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{agency.short_name}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{agency.display_name}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{agency.slug}</td>
+                <td className="px-2 py-3 whitespace-nowrap text-sm text-gray-300 hidden sm:table-cell">{agency.id}</td>
+                <td className="px-3 py-3 text-sm font-medium text-gray-100 truncate max-w-[200px]">{agency.name}</td>
+                <td className="px-3 py-3 text-sm text-gray-300 truncate max-w-[150px] hidden md:table-cell">{agency.short_name}</td>
+                <td className="px-3 py-3 text-sm text-gray-300 truncate max-w-[200px] hidden lg:table-cell">{agency.display_name}</td>
+                <td className="px-3 py-3 text-sm text-gray-300 truncate max-w-[150px] hidden xl:table-cell">{agency.slug}</td>
               </tr>
             ))
           )}
