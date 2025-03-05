@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase.ts';
 import { Line } from 'react-chartjs-2';
+import { Footer } from '../components/Footer';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -403,239 +404,242 @@ const AgencyDetailPage: React.FC = () => {
   ).join('; ');
 
   return (
-    <div className="container mx-auto px-4 py-6 bg-[#171c2e] min-h-screen">
-      <div className="mb-4">
-        <Link to="/agencies" className="text-blue-400 hover:underline flex items-center">
-          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-          </svg>
-          Back to Agencies
-        </Link>
-      </div>
-      
-      {/* Agency Header */}
-      <div className="bg-[#1e2538] rounded-lg shadow-md overflow-hidden mb-6">
-        <div className="bg-gradient-to-r from-blue-900 to-indigo-900 p-6">
-          <div className="flex items-center">
-            <div className="bg-blue-700 rounded-full p-3 mr-4">
-              <span className="text-2xl font-bold text-white">{agency.short_name?.charAt(0) || agency.name.charAt(0)}</span>
+    <>
+      <div className="container mx-auto px-4 py-6">
+        <div className="mb-4">
+          <Link to="/agencies" className="text-blue-400 hover:underline flex items-center">
+            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            Back to Agencies
+          </Link>
+        </div>
+        
+        {/* Agency Header */}
+        <div className="bg-[#1e2538] rounded-lg shadow-md overflow-hidden mb-6">
+          <div className="bg-gradient-to-r from-blue-900 to-indigo-900 p-6">
+            <div className="flex items-center">
+              <div className="bg-blue-700 rounded-full p-3 mr-4">
+                <span className="text-2xl font-bold text-white">{agency.short_name?.charAt(0) || agency.name.charAt(0)}</span>
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-white mb-1">
+                  {agency.display_name || agency.name}
+                </h1>
+                {agency.short_name && (
+                  <p className="text-blue-200 text-sm">{agency.short_name}</p>
+                )}
+              </div>
             </div>
-            <div>
-              <h1 className="text-2xl font-bold text-white mb-1">
-                {agency.display_name || agency.name}
-              </h1>
-              {agency.short_name && (
-                <p className="text-blue-200 text-sm">{agency.short_name}</p>
-              )}
+          </div>
+          
+          <div className="p-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="col-span-2">
+                <h2 className="text-lg font-semibold text-white mb-2">About</h2>
+                <p className="text-gray-300">
+                  {agency.description || `The ${agency.name} is a federal agency of the United States government.`}
+                </p>
+              </div>
+              
+              <div className="bg-[#232939] rounded-lg p-4">
+                <h3 className="text-gray-300 text-sm font-medium mb-3 border-b border-gray-700 pb-2">Agency Details</h3>
+                
+                <div className="mb-3">
+                  <p className="text-xs text-gray-400">ID</p>
+                  <p className="text-sm text-white">{agency.id}</p>
+                </div>
+                
+                <div className="mb-3">
+                  <p className="text-xs text-gray-400">Slug</p>
+                  <p className="text-sm text-white">{agency.slug}</p>
+                </div>
+                
+                {cfrReferencesText && (
+                  <div>
+                    <p className="text-xs text-gray-400">CFR References</p>
+                    <p className="text-sm text-white">{cfrReferencesText}</p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
         
-        <div className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="col-span-2">
-              <h2 className="text-lg font-semibold text-white mb-2">About</h2>
-              <p className="text-gray-300">
-                {agency.description || `The ${agency.name} is a federal agency of the United States government.`}
-              </p>
-            </div>
-            
-            <div className="bg-[#232939] rounded-lg p-4">
-              <h3 className="text-gray-300 text-sm font-medium mb-3 border-b border-gray-700 pb-2">Agency Details</h3>
-              
-              <div className="mb-3">
-                <p className="text-xs text-gray-400">ID</p>
-                <p className="text-sm text-white">{agency.id}</p>
+        {/* Latest Metrics Section */}
+        <div className="bg-[#1e2538] rounded-lg shadow-md p-6 mb-6">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-xl font-semibold text-white">Latest Metrics</h2>
+            {latestMetrics && (
+              <div className="text-sm text-gray-400">
+                As of {formatDate(latestMetrics.metrics_date)}
               </div>
-              
-              <div className="mb-3">
-                <p className="text-xs text-gray-400">Slug</p>
-                <p className="text-sm text-white">{agency.slug}</p>
-              </div>
-              
-              {cfrReferencesText && (
-                <div>
-                  <p className="text-xs text-gray-400">CFR References</p>
-                  <p className="text-sm text-white">{cfrReferencesText}</p>
-                </div>
-              )}
-            </div>
+            )}
           </div>
-        </div>
-      </div>
-      
-      {/* Latest Metrics Section */}
-      <div className="bg-[#1e2538] rounded-lg shadow-md p-6 mb-6">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-semibold text-white">Latest Metrics</h2>
-          {latestMetrics && (
-            <div className="text-sm text-gray-400">
-              As of {formatDate(latestMetrics.metrics_date)}
+          
+          {!latestMetrics ? (
+            <div className="text-center py-8 text-gray-400">
+              No metrics data available for this agency
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {/* Document Structure Metrics */}
+              <div className="bg-[#232939] rounded-lg p-4">
+                <h3 className="text-gray-300 text-sm font-medium mb-3 border-b border-gray-700 pb-2">Document Structure</h3>
+                
+                <div className="mb-3">
+                  <p className="text-xs text-gray-400">Word Count</p>
+                  <p className="text-xl font-bold text-white">{latestMetrics.word_count.toLocaleString()}</p>
+                </div>
+                
+                <div className="mb-3">
+                  <p className="text-xs text-gray-400">Paragraph Count</p>
+                  <p className="text-xl font-bold text-white">{latestMetrics.paragraph_count.toLocaleString()}</p>
+                </div>
+                
+                <div>
+                  <p className="text-xs text-gray-400">Sentence Count</p>
+                  <p className="text-xl font-bold text-white">{latestMetrics.sentence_count.toLocaleString()}</p>
+                </div>
+              </div>
+              
+              {/* Readability Metrics */}
+              <div className="bg-[#232939] rounded-lg p-4">
+                <h3 className="text-gray-300 text-sm font-medium mb-3 border-b border-gray-700 pb-2">Readability</h3>
+                
+                <div className="mb-3">
+                  <p className="text-xs text-gray-400">Readability Score</p>
+                  <p className="text-xl font-bold text-white">{latestMetrics.readability_score.toFixed(2)}</p>
+                </div>
+                
+                <div className="mb-3">
+                  <p className="text-xs text-gray-400">Simplicity Score</p>
+                  <p className="text-xl font-bold text-white">{latestMetrics.simplicity_score.toFixed(2)}</p>
+                </div>
+                
+                <div>
+                  <p className="text-xs text-gray-400">Language Complexity</p>
+                  <p className="text-xl font-bold text-white">{latestMetrics.language_complexity_score.toFixed(2)}</p>
+                </div>
+              </div>
+              
+              {/* Section Metrics */}
+              <div className="bg-[#232939] rounded-lg p-4">
+                <h3 className="text-gray-300 text-sm font-medium mb-3 border-b border-gray-700 pb-2">Document Sections</h3>
+                
+                <div className="mb-3">
+                  <p className="text-xs text-gray-400">Section Count</p>
+                  <p className="text-xl font-bold text-white">{latestMetrics.section_count.toLocaleString()}</p>
+                </div>
+                
+                {latestMetrics.average_sentence_length && (
+                  <div className="mb-3">
+                    <p className="text-xs text-gray-400">Avg. Sentence Length</p>
+                    <p className="text-xl font-bold text-white">{latestMetrics.average_sentence_length.toFixed(1)} words</p>
+                  </div>
+                )}
+                
+                {latestMetrics.average_word_length && (
+                  <div>
+                    <p className="text-xs text-gray-400">Avg. Word Length</p>
+                    <p className="text-xl font-bold text-white">{latestMetrics.average_word_length.toFixed(1)} chars</p>
+                  </div>
+                )}
+              </div>
+              
+              {/* Visual Representation */}
+              <div className="bg-[#232939] rounded-lg p-4">
+                <h3 className="text-gray-300 text-sm font-medium mb-3 border-b border-gray-700 pb-2">Complexity Rating</h3>
+                
+                <div className="flex flex-col items-center justify-center h-full">
+                  {/* Circular gauge for readability */}
+                  <div className="relative w-32 h-32">
+                    <svg viewBox="0 0 100 100" className="w-full h-full">
+                      {/* Background circle */}
+                      <circle 
+                        cx="50" cy="50" r="45" 
+                        fill="transparent" 
+                        stroke="#374151" 
+                        strokeWidth="10" 
+                      />
+                      
+                      {/* Foreground circle - calculate stroke-dasharray based on score */}
+                      <circle 
+                        cx="50" cy="50" r="45" 
+                        fill="transparent" 
+                        stroke={
+                          latestMetrics.readability_score > 80 ? "#10B981" : 
+                          latestMetrics.readability_score > 60 ? "#3B82F6" : 
+                          latestMetrics.readability_score > 40 ? "#F59E0B" : 
+                          "#EF4444"
+                        } 
+                        strokeWidth="10" 
+                        strokeDasharray={`${latestMetrics.readability_score * 2.83} 283`} 
+                        strokeDashoffset="0" 
+                        strokeLinecap="round" 
+                        transform="rotate(-90 50 50)" 
+                      />
+                      
+                      {/* Score text */}
+                      <text 
+                        x="50" y="50" 
+                        dominantBaseline="middle" 
+                        textAnchor="middle" 
+                        fontSize="20" 
+                        fontWeight="bold" 
+                        fill="white"
+                      >
+                        {Math.round(latestMetrics.readability_score)}
+                      </text>
+                      <text 
+                        x="50" y="65" 
+                        dominantBaseline="middle" 
+                        textAnchor="middle" 
+                        fontSize="10" 
+                        fill="#9CA3AF"
+                      >
+                        Readability
+                      </text>
+                    </svg>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
         </div>
         
-        {!latestMetrics ? (
-          <div className="text-center py-8 text-gray-400">
-            No metrics data available for this agency
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {/* Document Structure Metrics */}
-            <div className="bg-[#232939] rounded-lg p-4">
-              <h3 className="text-gray-300 text-sm font-medium mb-3 border-b border-gray-700 pb-2">Document Structure</h3>
-              
-              <div className="mb-3">
-                <p className="text-xs text-gray-400">Word Count</p>
-                <p className="text-xl font-bold text-white">{latestMetrics.word_count.toLocaleString()}</p>
-              </div>
-              
-              <div className="mb-3">
-                <p className="text-xs text-gray-400">Paragraph Count</p>
-                <p className="text-xl font-bold text-white">{latestMetrics.paragraph_count.toLocaleString()}</p>
-              </div>
-              
-              <div>
-                <p className="text-xs text-gray-400">Sentence Count</p>
-                <p className="text-xl font-bold text-white">{latestMetrics.sentence_count.toLocaleString()}</p>
+        {/* Historical Metrics Section */}
+        {aggregatedMetrics.length > 0 && (
+          <div className="bg-[#1e2538] rounded-lg shadow-md p-6 mb-6">
+            <h2 className="text-xl font-semibold text-white mb-6">Historical Metrics</h2>
+            
+            {/* Readability Metrics Chart (Combined) */}
+            <div className="mb-8 bg-[#232939] rounded-lg p-6">
+              <h3 className="text-lg font-medium text-white mb-4">Readability Metrics Over Time</h3>
+              <div className="h-80">
+                <Line data={readabilityChartData} options={readabilityChartOptions} />
               </div>
             </div>
             
-            {/* Readability Metrics */}
-            <div className="bg-[#232939] rounded-lg p-4">
-              <h3 className="text-gray-300 text-sm font-medium mb-3 border-b border-gray-700 pb-2">Readability</h3>
-              
-              <div className="mb-3">
-                <p className="text-xs text-gray-400">Readability Score</p>
-                <p className="text-xl font-bold text-white">{latestMetrics.readability_score.toFixed(2)}</p>
-              </div>
-              
-              <div className="mb-3">
-                <p className="text-xs text-gray-400">Simplicity Score</p>
-                <p className="text-xl font-bold text-white">{latestMetrics.simplicity_score.toFixed(2)}</p>
-              </div>
-              
-              <div>
-                <p className="text-xs text-gray-400">Language Complexity</p>
-                <p className="text-xl font-bold text-white">{latestMetrics.language_complexity_score.toFixed(2)}</p>
-              </div>
-            </div>
-            
-            {/* Section Metrics */}
-            <div className="bg-[#232939] rounded-lg p-4">
-              <h3 className="text-gray-300 text-sm font-medium mb-3 border-b border-gray-700 pb-2">Document Sections</h3>
-              
-              <div className="mb-3">
-                <p className="text-xs text-gray-400">Section Count</p>
-                <p className="text-xl font-bold text-white">{latestMetrics.section_count.toLocaleString()}</p>
-              </div>
-              
-              {latestMetrics.average_sentence_length && (
-                <div className="mb-3">
-                  <p className="text-xs text-gray-400">Avg. Sentence Length</p>
-                  <p className="text-xl font-bold text-white">{latestMetrics.average_sentence_length.toFixed(1)} words</p>
-                </div>
-              )}
-              
-              {latestMetrics.average_word_length && (
-                <div>
-                  <p className="text-xs text-gray-400">Avg. Word Length</p>
-                  <p className="text-xl font-bold text-white">{latestMetrics.average_word_length.toFixed(1)} chars</p>
-                </div>
-              )}
-            </div>
-            
-            {/* Visual Representation */}
-            <div className="bg-[#232939] rounded-lg p-4">
-              <h3 className="text-gray-300 text-sm font-medium mb-3 border-b border-gray-700 pb-2">Complexity Rating</h3>
-              
-              <div className="flex flex-col items-center justify-center h-full">
-                {/* Circular gauge for readability */}
-                <div className="relative w-32 h-32">
-                  <svg viewBox="0 0 100 100" className="w-full h-full">
-                    {/* Background circle */}
-                    <circle 
-                      cx="50" cy="50" r="45" 
-                      fill="transparent" 
-                      stroke="#374151" 
-                      strokeWidth="10" 
+            {/* Individual Metric Charts */}
+            <div className="space-y-8">
+              {metricDefinitions.filter(m => !['readability_score', 'simplicity_score', 'language_complexity_score'].includes(m.id)).map((metric) => (
+                <div key={metric.id} className="bg-[#232939] rounded-lg p-6">
+                  <h3 className="text-lg font-medium text-white mb-4">{metric.label} Over Time</h3>
+                  <div className="h-64">
+                    <Line 
+                      data={createChartData(metric.id, metric.label, metric.color)} 
+                      options={createChartOptions(metric.label)} 
                     />
-                    
-                    {/* Foreground circle - calculate stroke-dasharray based on score */}
-                    <circle 
-                      cx="50" cy="50" r="45" 
-                      fill="transparent" 
-                      stroke={
-                        latestMetrics.readability_score > 80 ? "#10B981" : 
-                        latestMetrics.readability_score > 60 ? "#3B82F6" : 
-                        latestMetrics.readability_score > 40 ? "#F59E0B" : 
-                        "#EF4444"
-                      } 
-                      strokeWidth="10" 
-                      strokeDasharray={`${latestMetrics.readability_score * 2.83} 283`} 
-                      strokeDashoffset="0" 
-                      strokeLinecap="round" 
-                      transform="rotate(-90 50 50)" 
-                    />
-                    
-                    {/* Score text */}
-                    <text 
-                      x="50" y="50" 
-                      dominantBaseline="middle" 
-                      textAnchor="middle" 
-                      fontSize="20" 
-                      fontWeight="bold" 
-                      fill="white"
-                    >
-                      {Math.round(latestMetrics.readability_score)}
-                    </text>
-                    <text 
-                      x="50" y="65" 
-                      dominantBaseline="middle" 
-                      textAnchor="middle" 
-                      fontSize="10" 
-                      fill="#9CA3AF"
-                    >
-                      Readability
-                    </text>
-                  </svg>
+                  </div>
                 </div>
-              </div>
+              ))}
             </div>
           </div>
         )}
       </div>
-      
-      {/* Historical Metrics Section */}
-      {aggregatedMetrics.length > 0 && (
-        <div className="bg-[#1e2538] rounded-lg shadow-md p-6 mb-6">
-          <h2 className="text-xl font-semibold text-white mb-6">Historical Metrics</h2>
-          
-          {/* Readability Metrics Chart (Combined) */}
-          <div className="mb-8 bg-[#232939] rounded-lg p-6">
-            <h3 className="text-lg font-medium text-white mb-4">Readability Metrics Over Time</h3>
-            <div className="h-80">
-              <Line data={readabilityChartData} options={readabilityChartOptions} />
-            </div>
-          </div>
-          
-          {/* Individual Metric Charts */}
-          <div className="space-y-8">
-            {metricDefinitions.filter(m => !['readability_score', 'simplicity_score', 'language_complexity_score'].includes(m.id)).map((metric) => (
-              <div key={metric.id} className="bg-[#232939] rounded-lg p-6">
-                <h3 className="text-lg font-medium text-white mb-4">{metric.label} Over Time</h3>
-                <div className="h-64">
-                  <Line 
-                    data={createChartData(metric.id, metric.label, metric.color)} 
-                    options={createChartOptions(metric.label)} 
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
+      <Footer />
+    </>
   );
 };
 

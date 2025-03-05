@@ -6,9 +6,9 @@ import Navbar from './components/Navbar';
 function App() {
   return (
     <Router>
-      <div className="min-h-screen bg-[#171c2e] text-gray-200">
+      <div className="min-h-screen bg-[#171c2e] text-gray-200 flex flex-col">
         <Navbar />
-        <main>
+        <main className="flex-grow">
           <Routes>
             {/* Redirect root to agencies */}
             <Route path="/" element={<Navigate to="/agencies" replace />} />
