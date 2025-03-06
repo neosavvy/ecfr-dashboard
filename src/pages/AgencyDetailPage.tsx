@@ -583,12 +583,12 @@ const AgencyDetailPage: React.FC = () => {
                     <p className="text-2xl font-bold text-white">{formatCountValue(latestMetrics.word_count)}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-400">Total Paragraph Count</p>
-                    <p className="text-2xl font-bold text-white">{formatCountValue(latestMetrics.paragraph_count)}</p>
-                  </div>
-                  <div>
                     <p className="text-sm text-gray-400">Total Sentence Count</p>
                     <p className="text-2xl font-bold text-white">{formatCountValue(latestMetrics.sentence_count)}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-400">Total Paragraph Count</p>
+                    <p className="text-2xl font-bold text-white">{formatCountValue(latestMetrics.paragraph_count)}</p>
                   </div>
                 </div>
               </div>
