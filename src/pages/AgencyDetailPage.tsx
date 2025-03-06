@@ -70,8 +70,20 @@ interface AggregatedMetric {
   avg_simplicity_score: number;
 }
 
-// Function to aggregate metrics by year and calculate cumulative totals
+// Add this helper function at the top level
+function generateYearRange(startYear: number, endYear: number): number[] {
+  const years = [];
+  for (let year = startYear; year <= endYear; year++) {
+    years.push(year);
+  }
+  return years;
+}
+
+// Update the aggregateMetricsByYear function
 const aggregateMetricsByYear = (metrics: AgencyMetric[]): AggregatedMetric[] => {
+  const currentYear = new Date().getFullYear();
+  const allYears = generateYearRange(2016, currentYear);
+  
   // First, group metrics by year and calculate yearly totals/averages
   const yearlyMetrics = metrics.reduce((acc, metric) => {
     const year = new Date(metric.metrics_date).getFullYear();
@@ -90,13 +102,13 @@ const aggregateMetricsByYear = (metrics: AgencyMetric[]): AggregatedMetric[] => 
     }
     
     acc[year].count += 1;
-    acc[year].word_count += metric.word_count;
-    acc[year].paragraph_count += metric.paragraph_count;
-    acc[year].sentence_count += metric.sentence_count;
-    acc[year].section_count += metric.section_count;
-    acc[year].language_complexity_score += metric.language_complexity_score;
-    acc[year].readability_score += metric.readability_score;
-    acc[year].simplicity_score += metric.simplicity_score;
+    acc[year].word_count += metric.word_count || 0;
+    acc[year].paragraph_count += metric.paragraph_count || 0;
+    acc[year].sentence_count += metric.sentence_count || 0;
+    acc[year].section_count += metric.section_count || 0;
+    acc[year].language_complexity_score += metric.language_complexity_score || 0;
+    acc[year].readability_score += metric.readability_score || 0;
+    acc[year].simplicity_score += metric.simplicity_score || 0;
     
     return acc;
   }, {} as Record<number, {
@@ -110,40 +122,56 @@ const aggregateMetricsByYear = (metrics: AgencyMetric[]): AggregatedMetric[] => 
     simplicity_score: number;
   }>);
 
-  // Convert to array and sort by year
-  const yearlyArray = Object.entries(yearlyMetrics)
-    .map(([year, data]) => ({
-      year: parseInt(year),
-      word_count: data.word_count,
-      paragraph_count: data.paragraph_count,
-      sentence_count: data.sentence_count,
-      section_count: data.section_count,
-      avg_language_complexity_score: Number((data.language_complexity_score / data.count).toFixed(2)),
-      avg_readability_score: Number((data.readability_score / data.count).toFixed(2)),
-      avg_simplicity_score: Number((data.simplicity_score / data.count).toFixed(2))
-    }))
-    .sort((a, b) => a.year - b.year);
-
-  // Calculate cumulative totals
+  // Initialize running totals
   let cumulativeWordCount = 0;
   let cumulativeParagraphCount = 0;
   let cumulativeSentenceCount = 0;
   let cumulativeSectionCount = 0;
+  let lastReadabilityScore = 0;
+  let lastLanguageComplexityScore = 0;
+  let lastSimplicityScore = 0;
 
-  return yearlyArray.map(yearData => ({
-    year: yearData.year,
-    word_count: yearData.word_count,
-    cumulative_word_count: (cumulativeWordCount += yearData.word_count),
-    paragraph_count: yearData.paragraph_count,
-    cumulative_paragraph_count: (cumulativeParagraphCount += yearData.paragraph_count),
-    sentence_count: yearData.sentence_count,
-    cumulative_sentence_count: (cumulativeSentenceCount += yearData.sentence_count),
-    section_count: yearData.section_count,
-    cumulative_section_count: (cumulativeSectionCount += yearData.section_count),
-    avg_language_complexity_score: yearData.avg_language_complexity_score,
-    avg_readability_score: yearData.avg_readability_score,
-    avg_simplicity_score: yearData.avg_simplicity_score
-  }));
+  // Create continuous data points for all years
+  return allYears.map(year => {
+    const yearData = yearlyMetrics[year] || {
+      count: 0,
+      word_count: 0,
+      paragraph_count: 0,
+      sentence_count: 0,
+      section_count: 0,
+      language_complexity_score: lastLanguageComplexityScore,
+      readability_score: lastReadabilityScore,
+      simplicity_score: lastSimplicityScore
+    };
+
+    // Update cumulative totals
+    cumulativeWordCount += yearData.word_count;
+    cumulativeParagraphCount += yearData.paragraph_count;
+    cumulativeSentenceCount += yearData.sentence_count;
+    cumulativeSectionCount += yearData.section_count;
+
+    // Update last known scores if we have new data
+    if (yearData.count > 0) {
+      lastReadabilityScore = yearData.readability_score / yearData.count;
+      lastLanguageComplexityScore = yearData.language_complexity_score / yearData.count;
+      lastSimplicityScore = yearData.simplicity_score / yearData.count;
+    }
+
+    return {
+      year,
+      word_count: yearData.word_count,
+      cumulative_word_count: cumulativeWordCount,
+      paragraph_count: yearData.paragraph_count,
+      cumulative_paragraph_count: cumulativeParagraphCount,
+      sentence_count: yearData.sentence_count,
+      cumulative_sentence_count: cumulativeSentenceCount,
+      section_count: yearData.section_count,
+      cumulative_section_count: cumulativeSectionCount,
+      avg_language_complexity_score: lastLanguageComplexityScore,
+      avg_readability_score: lastReadabilityScore,
+      avg_simplicity_score: lastSimplicityScore
+    };
+  });
 };
 
 const AgencyDetailPage: React.FC = () => {
@@ -173,46 +201,41 @@ const AgencyDetailPage: React.FC = () => {
           .eq('id', parseInt(agencyId as string, 10))
           .single();
         
-        if (agencyError) {
-          throw agencyError;
-        }
+        if (agencyError) throw agencyError;
         
-        // Fetch ALL historical metrics for cumulative calculation
+        // Update the date range to start from 2016
         const { data: metricsData, error: metricsError } = await supabase
           .from('agency_regulation_document_historical_metrics')
           .select('*')
-          .eq('agency_id', parseInt(agencyId as string, 10));
+          .eq('agency_id', parseInt(agencyId as string, 10))
+          .gte('metrics_date', '2016-01-01')
+          .order('metrics_date', { ascending: true });
 
         if (metricsError) throw metricsError;
 
-        // Calculate cumulative metrics
-        const cumulativeMetrics = metricsData.reduce((acc, curr) => {
-          // Get the latest year for reference
-          const currYear = new Date(curr.metrics_date).getFullYear();
-          if (!acc.year || currYear > acc.year) {
-            acc.year = currYear;
-          }
-
-          // Sum up all metrics
-          acc.word_count = (acc.word_count || 0) + (curr.word_count || 0);
-          acc.paragraph_count = (acc.paragraph_count || 0) + (curr.paragraph_count || 0);
-          acc.sentence_count = (acc.sentence_count || 0) + (curr.sentence_count || 0);
-          acc.section_count = (acc.section_count || 0) + (curr.section_count || 0);
-          acc.readability_score = curr.readability_score || acc.readability_score; // Take the latest
-          acc.language_complexity_score = curr.language_complexity_score || acc.language_complexity_score; // Take the latest
-          acc.simplicity_score = curr.simplicity_score || acc.simplicity_score; // Take the latest
-
-          return acc;
-        }, {} as AgencyMetric);
-
         setAgency(agencyData);
-        setLatestMetrics(cumulativeMetrics);
         setHistoricalMetrics(metricsData);
         
-        // Aggregate metrics by year
+        // Aggregate metrics with continuous data points
         const aggregated = aggregateMetricsByYear(metricsData);
-        console.log('Aggregated metrics:', aggregated);
+        console.log('Aggregated metrics with continuous data:', aggregated);
         setAggregatedMetrics(aggregated);
+
+        // Calculate latest cumulative totals
+        const latestMetrics = aggregated[aggregated.length - 1];
+        setLatestMetrics({
+          id: 0,
+          agency_id: parseInt(agencyId),
+          metrics_date: new Date().toISOString(),
+          word_count: latestMetrics.cumulative_word_count,
+          paragraph_count: latestMetrics.cumulative_paragraph_count,
+          sentence_count: latestMetrics.cumulative_sentence_count,
+          section_count: latestMetrics.cumulative_section_count,
+          language_complexity_score: latestMetrics.avg_language_complexity_score,
+          readability_score: latestMetrics.avg_readability_score,
+          simplicity_score: latestMetrics.avg_simplicity_score
+        });
+
       } catch (error: any) {
         console.error('Error fetching agency data:', error);
         setError(error.message);
