@@ -58,13 +58,93 @@ interface AgencyMetric {
 interface AggregatedMetric {
   year: number;
   word_count: number;
+  cumulative_word_count: number;
   paragraph_count: number;
+  cumulative_paragraph_count: number;
   sentence_count: number;
+  cumulative_sentence_count: number;
   section_count: number;
-  language_complexity_score: number;
-  readability_score: number;
-  simplicity_score: number;
+  cumulative_section_count: number;
+  avg_language_complexity_score: number;
+  avg_readability_score: number;
+  avg_simplicity_score: number;
 }
+
+// Function to aggregate metrics by year and calculate cumulative totals
+const aggregateMetricsByYear = (metrics: AgencyMetric[]): AggregatedMetric[] => {
+  // First, group metrics by year and calculate yearly totals/averages
+  const yearlyMetrics = metrics.reduce((acc, metric) => {
+    const year = new Date(metric.metrics_date).getFullYear();
+    
+    if (!acc[year]) {
+      acc[year] = {
+        count: 0,
+        word_count: 0,
+        paragraph_count: 0,
+        sentence_count: 0,
+        section_count: 0,
+        language_complexity_score: 0,
+        readability_score: 0,
+        simplicity_score: 0
+      };
+    }
+    
+    acc[year].count += 1;
+    acc[year].word_count += metric.word_count;
+    acc[year].paragraph_count += metric.paragraph_count;
+    acc[year].sentence_count += metric.sentence_count;
+    acc[year].section_count += metric.section_count;
+    acc[year].language_complexity_score += metric.language_complexity_score;
+    acc[year].readability_score += metric.readability_score;
+    acc[year].simplicity_score += metric.simplicity_score;
+    
+    return acc;
+  }, {} as Record<number, {
+    count: number;
+    word_count: number;
+    paragraph_count: number;
+    sentence_count: number;
+    section_count: number;
+    language_complexity_score: number;
+    readability_score: number;
+    simplicity_score: number;
+  }>);
+
+  // Convert to array and sort by year
+  const yearlyArray = Object.entries(yearlyMetrics)
+    .map(([year, data]) => ({
+      year: parseInt(year),
+      word_count: data.word_count,
+      paragraph_count: data.paragraph_count,
+      sentence_count: data.sentence_count,
+      section_count: data.section_count,
+      avg_language_complexity_score: Number((data.language_complexity_score / data.count).toFixed(2)),
+      avg_readability_score: Number((data.readability_score / data.count).toFixed(2)),
+      avg_simplicity_score: Number((data.simplicity_score / data.count).toFixed(2))
+    }))
+    .sort((a, b) => a.year - b.year);
+
+  // Calculate cumulative totals
+  let cumulativeWordCount = 0;
+  let cumulativeParagraphCount = 0;
+  let cumulativeSentenceCount = 0;
+  let cumulativeSectionCount = 0;
+
+  return yearlyArray.map(yearData => ({
+    year: yearData.year,
+    word_count: yearData.word_count,
+    cumulative_word_count: (cumulativeWordCount += yearData.word_count),
+    paragraph_count: yearData.paragraph_count,
+    cumulative_paragraph_count: (cumulativeParagraphCount += yearData.paragraph_count),
+    sentence_count: yearData.sentence_count,
+    cumulative_sentence_count: (cumulativeSentenceCount += yearData.sentence_count),
+    section_count: yearData.section_count,
+    cumulative_section_count: (cumulativeSectionCount += yearData.section_count),
+    avg_language_complexity_score: yearData.avg_language_complexity_score,
+    avg_readability_score: yearData.avg_readability_score,
+    avg_simplicity_score: yearData.avg_simplicity_score
+  }));
+};
 
 const AgencyDetailPage: React.FC = () => {
   const { agencyId } = useParams<{ agencyId: string }>();
@@ -97,39 +177,42 @@ const AgencyDetailPage: React.FC = () => {
           throw agencyError;
         }
         
-        setAgency(agencyData);
-        
-        // Fetch latest metrics for this agency
+        // Fetch ALL historical metrics for cumulative calculation
         const { data: metricsData, error: metricsError } = await supabase
           .from('agency_regulation_document_historical_metrics')
           .select('*')
-          .eq('agency_id', parseInt(agencyId as string, 10))
-          .order('metrics_date', { ascending: false })
-          .limit(1);
+          .eq('agency_id', parseInt(agencyId as string, 10));
+
+        if (metricsError) throw metricsError;
+
+        // Calculate cumulative metrics
+        const cumulativeMetrics = metricsData.reduce((acc, curr) => {
+          // Get the latest year for reference
+          const currYear = new Date(curr.metrics_date).getFullYear();
+          if (!acc.year || currYear > acc.year) {
+            acc.year = currYear;
+          }
+
+          // Sum up all metrics
+          acc.word_count = (acc.word_count || 0) + (curr.word_count || 0);
+          acc.paragraph_count = (acc.paragraph_count || 0) + (curr.paragraph_count || 0);
+          acc.sentence_count = (acc.sentence_count || 0) + (curr.sentence_count || 0);
+          acc.section_count = (acc.section_count || 0) + (curr.section_count || 0);
+          acc.readability_score = curr.readability_score || acc.readability_score; // Take the latest
+          acc.language_complexity_score = curr.language_complexity_score || acc.language_complexity_score; // Take the latest
+          acc.simplicity_score = curr.simplicity_score || acc.simplicity_score; // Take the latest
+
+          return acc;
+        }, {} as AgencyMetric);
+
+        setAgency(agencyData);
+        setLatestMetrics(cumulativeMetrics);
+        setHistoricalMetrics(metricsData);
         
-        if (metricsError) {
-          console.warn('Error fetching latest metrics:', metricsError);
-        } else if (metricsData && metricsData.length > 0) {
-          setLatestMetrics(metricsData[0]);
-        }
-        
-        // Fetch all historical metrics for this agency
-        const { data: historicalData, error: historicalError } = await supabase
-          .from('agency_regulation_document_historical_metrics')
-          .select('*')
-          .eq('agency_id', parseInt(agencyId as string, 10))
-          .order('metrics_date', { ascending: true });
-        
-        if (historicalError) {
-          console.warn('Error fetching historical metrics:', historicalError);
-        } else if (historicalData) {
-          setHistoricalMetrics(historicalData);
-          
-          // Aggregate metrics by year
-          const aggregated = aggregateMetricsByYear(historicalData);
-          setAggregatedMetrics(aggregated);
-        }
-        
+        // Aggregate metrics by year
+        const aggregated = aggregateMetricsByYear(metricsData);
+        console.log('Aggregated metrics:', aggregated);
+        setAggregatedMetrics(aggregated);
       } catch (error: any) {
         console.error('Error fetching agency data:', error);
         setError(error.message);
@@ -138,67 +221,10 @@ const AgencyDetailPage: React.FC = () => {
       }
     }
 
-    fetchAgencyData();
+    if (agencyId) {
+      fetchAgencyData();
+    }
   }, [agencyId]);
-
-  // Function to aggregate metrics by year
-  const aggregateMetricsByYear = (metrics: AgencyMetric[]): AggregatedMetric[] => {
-    const yearMap = new Map<number, { 
-      count: number,
-      word_count: number,
-      paragraph_count: number,
-      sentence_count: number,
-      section_count: number,
-      language_complexity_score: number,
-      readability_score: number,
-      simplicity_score: number
-    }>();
-    
-    metrics.forEach(metric => {
-      const year = new Date(metric.metrics_date).getFullYear();
-      
-      if (!yearMap.has(year)) {
-        yearMap.set(year, {
-          count: 0,
-          word_count: 0,
-          paragraph_count: 0,
-          sentence_count: 0,
-          section_count: 0,
-          language_complexity_score: 0,
-          readability_score: 0,
-          simplicity_score: 0
-        });
-      }
-      
-      const yearData = yearMap.get(year)!;
-      yearData.count += 1;
-      yearData.word_count += metric.word_count;
-      yearData.paragraph_count += metric.paragraph_count;
-      yearData.sentence_count += metric.sentence_count;
-      yearData.section_count += metric.section_count;
-      yearData.language_complexity_score += metric.language_complexity_score;
-      yearData.readability_score += metric.readability_score;
-      yearData.simplicity_score += metric.simplicity_score;
-    });
-    
-    // Calculate averages
-    const result: AggregatedMetric[] = [];
-    yearMap.forEach((data, year) => {
-      result.push({
-        year,
-        word_count: Math.round(data.word_count / data.count),
-        paragraph_count: Math.round(data.paragraph_count / data.count),
-        sentence_count: Math.round(data.sentence_count / data.count),
-        section_count: Math.round(data.section_count / data.count),
-        language_complexity_score: Number((data.language_complexity_score / data.count).toFixed(2)),
-        readability_score: Number((data.readability_score / data.count).toFixed(2)),
-        simplicity_score: Number((data.simplicity_score / data.count).toFixed(2))
-      });
-    });
-    
-    // Sort by year
-    return result.sort((a, b) => a.year - b.year);
-  };
 
   // Define metrics for charts
   const metricDefinitions = [
@@ -216,24 +242,24 @@ const AgencyDetailPage: React.FC = () => {
     labels: aggregatedMetrics.map(m => m.year.toString()),
     datasets: [
       {
-        label: 'Readability Score',
-        data: aggregatedMetrics.map(m => m.readability_score),
+        label: 'Average Readability Score',
+        data: aggregatedMetrics.map(m => m.avg_readability_score),
         borderColor: 'rgb(53, 162, 235)',
         backgroundColor: 'rgba(53, 162, 235, 0.5)',
         tension: 0.3,
         yAxisID: 'y',
       },
       {
-        label: 'Simplicity Score',
-        data: aggregatedMetrics.map(m => m.simplicity_score),
+        label: 'Average Simplicity Score',
+        data: aggregatedMetrics.map(m => m.avg_simplicity_score),
         borderColor: 'rgb(16, 185, 129)',
         backgroundColor: 'rgba(16, 185, 129, 0.5)',
         tension: 0.3,
         yAxisID: 'y',
       },
       {
-        label: 'Language Complexity',
-        data: aggregatedMetrics.map(m => m.language_complexity_score),
+        label: 'Average Language Complexity',
+        data: aggregatedMetrics.map(m => m.avg_language_complexity_score),
         borderColor: 'rgb(245, 158, 11)',
         backgroundColor: 'rgba(245, 158, 11, 0.5)',
         tension: 0.3,
@@ -299,12 +325,15 @@ const AgencyDetailPage: React.FC = () => {
 
   // Function to create chart data for a specific metric
   const createChartData = (metricId: string, metricLabel: string, metricColor: string) => {
+    const isCountMetric = ['word_count', 'paragraph_count', 'sentence_count', 'section_count'].includes(metricId);
+    const dataKey = isCountMetric ? `cumulative_${metricId}` : `avg_${metricId.replace('_score', '')}`;
+    
     return {
       labels: aggregatedMetrics.map(m => m.year.toString()),
       datasets: [
         {
-          label: metricLabel,
-          data: aggregatedMetrics.map(m => m[metricId as keyof AggregatedMetric] as number),
+          label: `${isCountMetric ? 'Cumulative ' : ''}${metricLabel}`,
+          data: aggregatedMetrics.map(m => m[dataKey as keyof AggregatedMetric] as number),
           borderColor: metricColor,
           backgroundColor: `${metricColor.slice(0, -1)}, 0.5)`,
           tension: 0.3,
@@ -375,7 +404,42 @@ const AgencyDetailPage: React.FC = () => {
   // Format date for display
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
+  };
+
+  // Get date range string
+  const getDateRangeString = (metrics: AgencyMetric[]) => {
+    if (!metrics.length) return '';
+    
+    const dates = metrics.map(m => new Date(m.metrics_date));
+    const minDate = new Date(Math.min(...dates.map(d => d.getTime())));
+    const maxDate = new Date(Math.max(...dates.map(d => d.getTime())));
+    
+    return `${formatDate(minDate.toISOString())} - ${formatDate(maxDate.toISOString())}`;
+  };
+
+  // Format CFR references for display with links
+  const CfrReferences = () => {
+    if (!agency?.cfr_references?.length) return null;
+    
+    return (
+      <div>
+        <p className="text-xs text-gray-400 mb-2">CFR References</p>
+        <div className="space-y-1">
+          {agency.cfr_references.map((ref, index) => (
+            <a
+              key={index}
+              href={`https://www.ecfr.gov/current/title-${ref.title}/chapter-${ref.chapter}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block text-sm text-blue-400 hover:text-blue-300 hover:underline transition-colors"
+            >
+              Title {ref.title}, Chapter {ref.chapter}
+            </a>
+          ))}
+        </div>
+      </div>
+    );
   };
 
   if (loading) {
@@ -397,11 +461,6 @@ const AgencyDetailPage: React.FC = () => {
       </div>
     );
   }
-
-  // Format CFR references for display
-  const cfrReferencesText = agency.cfr_references?.map(ref => 
-    `Title ${ref.title}, Chapter ${ref.chapter}`
-  ).join('; ');
 
   // Safe rendering helper functions
   const formatMetricValue = (value: number | undefined | null, decimals = 2) => {
@@ -463,23 +522,7 @@ const AgencyDetailPage: React.FC = () => {
               
               <div className="bg-[#232939] rounded-lg p-4">
                 <h3 className="text-gray-300 text-sm font-medium mb-3 border-b border-gray-700 pb-2">Agency Details</h3>
-                
-                <div className="mb-3">
-                  <p className="text-xs text-gray-400">ID</p>
-                  <p className="text-sm text-white">{agency.id}</p>
-                </div>
-                
-                <div className="mb-3">
-                  <p className="text-xs text-gray-400">Slug</p>
-                  <p className="text-sm text-white">{agency.slug}</p>
-                </div>
-                
-                {cfrReferencesText && (
-                  <div>
-                    <p className="text-xs text-gray-400">CFR References</p>
-                    <p className="text-sm text-white">{cfrReferencesText}</p>
-                  </div>
-                )}
+                <CfrReferences />
               </div>
             </div>
           </div>
@@ -501,24 +544,26 @@ const AgencyDetailPage: React.FC = () => {
               No metrics data available for this agency
             </div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {/* Document Structure Metrics */}
-              <div className="bg-[#232939] rounded-lg p-4">
-                <h3 className="text-gray-300 text-sm font-medium mb-3 border-b border-gray-700 pb-2">Document Structure</h3>
-                
-                <div className="mb-3">
-                  <p className="text-xs text-gray-400">Word Count</p>
-                  <p className="text-xl font-bold text-white">{formatCountValue(latestMetrics.word_count)}</p>
-                </div>
-                
-                <div className="mb-3">
-                  <p className="text-xs text-gray-400">Paragraph Count</p>
-                  <p className="text-xl font-bold text-white">{formatCountValue(latestMetrics.paragraph_count)}</p>
-                </div>
-                
-                <div>
-                  <p className="text-xs text-gray-400">Sentence Count</p>
-                  <p className="text-xl font-bold text-white">{formatCountValue(latestMetrics.sentence_count)}</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-8">
+              <div className="bg-[#1e2538] p-6 rounded-lg">
+                <h3 className="text-lg font-semibold text-white mb-4">Document Structure</h3>
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-sm text-gray-400">Total Word Count</p>
+                    <p className="text-2xl font-bold text-white">{formatCountValue(latestMetrics.word_count)}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-400">Total Paragraph Count</p>
+                    <p className="text-2xl font-bold text-white">{formatCountValue(latestMetrics.paragraph_count)}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-400">Total Sentence Count</p>
+                    <p className="text-2xl font-bold text-white">{formatCountValue(latestMetrics.sentence_count)}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-400">Total Section Count</p>
+                    <p className="text-2xl font-bold text-white">{formatCountValue(latestMetrics.section_count)}</p>
+                  </div>
                 </div>
               </div>
               
@@ -540,30 +585,6 @@ const AgencyDetailPage: React.FC = () => {
                   <p className="text-xs text-gray-400">Language Complexity</p>
                   <p className="text-xl font-bold text-white">{formatMetricValue(latestMetrics.language_complexity_score)}</p>
                 </div>
-              </div>
-              
-              {/* Section Metrics */}
-              <div className="bg-[#232939] rounded-lg p-4">
-                <h3 className="text-gray-300 text-sm font-medium mb-3 border-b border-gray-700 pb-2">Document Sections</h3>
-                
-                <div className="mb-3">
-                  <p className="text-xs text-gray-400">Section Count</p>
-                  <p className="text-xl font-bold text-white">{formatCountValue(latestMetrics.section_count)}</p>
-                </div>
-                
-                {latestMetrics.average_sentence_length !== undefined && latestMetrics.average_sentence_length !== null && (
-                  <div className="mb-3">
-                    <p className="text-xs text-gray-400">Avg. Sentence Length</p>
-                    <p className="text-xl font-bold text-white">{formatMetricValue(latestMetrics.average_sentence_length, 1)} words</p>
-                  </div>
-                )}
-                
-                {latestMetrics.average_word_length !== undefined && latestMetrics.average_word_length !== null && (
-                  <div>
-                    <p className="text-xs text-gray-400">Avg. Word Length</p>
-                    <p className="text-xl font-bold text-white">{formatMetricValue(latestMetrics.average_word_length, 1)} chars</p>
-                  </div>
-                )}
               </div>
               
               {/* Visual Representation */}
@@ -627,23 +648,19 @@ const AgencyDetailPage: React.FC = () => {
           <div className="bg-[#1e2538] rounded-lg shadow-md p-6 mb-6">
             <h2 className="text-xl font-semibold text-white mb-6">Historical Metrics</h2>
             
-            {/* Readability Metrics Chart (Combined) */}
-            <div className="mb-8 bg-[#232939] rounded-lg p-6">
-              <h3 className="text-lg font-medium text-white mb-4">Readability Metrics Over Time</h3>
-              <div className="h-80">
-                <Line data={readabilityChartData} options={readabilityChartOptions} />
-              </div>
-            </div>
-            
             {/* Individual Metric Charts */}
             <div className="space-y-8">
-              {metricDefinitions.filter(m => !['readability_score', 'simplicity_score', 'language_complexity_score'].includes(m.id)).map((metric) => (
-                <div key={metric.id} className="bg-[#232939] rounded-lg p-6">
-                  <h3 className="text-lg font-medium text-white mb-4">{metric.label} Over Time</h3>
+              {[
+                metricDefinitions.find(m => m.id === 'word_count'),
+                metricDefinitions.find(m => m.id === 'sentence_count'),
+                metricDefinitions.find(m => m.id === 'paragraph_count')
+              ].filter(Boolean).map((metric) => (
+                <div key={metric!.id} className="bg-[#232939] rounded-lg p-6">
+                  <h3 className="text-lg font-medium text-white mb-4">{metric!.label} Over Time</h3>
                   <div className="h-64">
                     <Line 
-                      data={createChartData(metric.id, metric.label, metric.color)} 
-                      options={createChartOptions(metric.label)} 
+                      data={createChartData(metric!.id, metric!.label, metric!.color)} 
+                      options={createChartOptions(metric!.label)} 
                     />
                   </div>
                 </div>
