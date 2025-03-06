@@ -47,12 +47,10 @@ interface AgencyMetric {
   word_count: number;
   paragraph_count: number;
   sentence_count: number;
-  section_count: number;
-  language_complexity_score: number;
-  readability_score: number;
-  simplicity_score: number;
-  average_sentence_length?: number;
-  average_word_length?: number;
+  combined_readability_score: number;
+  flesch_reading_ease: number;
+  smog_index_score: number;
+  automated_readability_score: number;
 }
 
 interface AggregatedMetric {
@@ -63,11 +61,10 @@ interface AggregatedMetric {
   cumulative_paragraph_count: number;
   sentence_count: number;
   cumulative_sentence_count: number;
-  section_count: number;
-  cumulative_section_count: number;
-  avg_language_complexity_score: number;
-  avg_readability_score: number;
-  avg_simplicity_score: number;
+  avg_combined_readability_score: number;
+  avg_flesch_reading_ease: number;
+  avg_smog_index_score: number;
+  avg_automated_readability_score: number;
 }
 
 // Add this helper function at the top level
@@ -77,6 +74,15 @@ function generateYearRange(startYear: number, endYear: number): number[] {
     years.push(year);
   }
   return years;
+}
+
+// Add helper function for readability interpretation
+function getReadabilityInterpretation(score: number): { text: string; color: string } {
+  if (score >= 90) return { text: 'Very easy to read', color: '#10B981' }; // green
+  if (score >= 70) return { text: 'Easy to read', color: '#3B82F6' }; // blue
+  if (score >= 50) return { text: 'Fairly difficult', color: '#F59E0B' }; // yellow
+  if (score >= 30) return { text: 'Difficult', color: '#EF4444' }; // red
+  return { text: 'Very difficult', color: '#991B1B' }; // dark red
 }
 
 // Update the aggregateMetricsByYear function
@@ -94,10 +100,10 @@ const aggregateMetricsByYear = (metrics: AgencyMetric[]): AggregatedMetric[] => 
         word_count: 0,
         paragraph_count: 0,
         sentence_count: 0,
-        section_count: 0,
-        language_complexity_score: 0,
-        readability_score: 0,
-        simplicity_score: 0
+        combined_readability_score: 0,
+        flesch_reading_ease: 0,
+        smog_index_score: 0,
+        automated_readability_score: 0
       };
     }
     
@@ -105,10 +111,10 @@ const aggregateMetricsByYear = (metrics: AgencyMetric[]): AggregatedMetric[] => 
     acc[year].word_count += metric.word_count || 0;
     acc[year].paragraph_count += metric.paragraph_count || 0;
     acc[year].sentence_count += metric.sentence_count || 0;
-    acc[year].section_count += metric.section_count || 0;
-    acc[year].language_complexity_score += metric.language_complexity_score || 0;
-    acc[year].readability_score += metric.readability_score || 0;
-    acc[year].simplicity_score += metric.simplicity_score || 0;
+    acc[year].combined_readability_score += metric.combined_readability_score || 0;
+    acc[year].flesch_reading_ease += metric.flesch_reading_ease || 0;
+    acc[year].smog_index_score += metric.smog_index_score || 0;
+    acc[year].automated_readability_score += metric.automated_readability_score || 0;
     
     return acc;
   }, {} as Record<number, {
@@ -116,20 +122,20 @@ const aggregateMetricsByYear = (metrics: AgencyMetric[]): AggregatedMetric[] => 
     word_count: number;
     paragraph_count: number;
     sentence_count: number;
-    section_count: number;
-    language_complexity_score: number;
-    readability_score: number;
-    simplicity_score: number;
+    combined_readability_score: number;
+    flesch_reading_ease: number;
+    smog_index_score: number;
+    automated_readability_score: number;
   }>);
 
   // Initialize running totals
   let cumulativeWordCount = 0;
   let cumulativeParagraphCount = 0;
   let cumulativeSentenceCount = 0;
-  let cumulativeSectionCount = 0;
   let lastReadabilityScore = 0;
-  let lastLanguageComplexityScore = 0;
-  let lastSimplicityScore = 0;
+  let lastFleschScore = 0;
+  let lastSmogScore = 0;
+  let lastAutomatedScore = 0;
 
   // Create continuous data points for all years
   return allYears.map(year => {
@@ -138,23 +144,29 @@ const aggregateMetricsByYear = (metrics: AgencyMetric[]): AggregatedMetric[] => 
       word_count: 0,
       paragraph_count: 0,
       sentence_count: 0,
-      section_count: 0,
-      language_complexity_score: lastLanguageComplexityScore,
-      readability_score: lastReadabilityScore,
-      simplicity_score: lastSimplicityScore
+      combined_readability_score: lastReadabilityScore,
+      flesch_reading_ease: lastFleschScore,
+      smog_index_score: lastSmogScore,
+      automated_readability_score: lastAutomatedScore
     };
 
     // Update cumulative totals
     cumulativeWordCount += yearData.word_count;
     cumulativeParagraphCount += yearData.paragraph_count;
     cumulativeSentenceCount += yearData.sentence_count;
-    cumulativeSectionCount += yearData.section_count;
 
-    // Update last known scores if we have new data
+    // Calculate averages for readability scores when there's data
+    const avgCombined = yearData.count > 0 ? yearData.combined_readability_score / yearData.count : lastReadabilityScore;
+    const avgFlesch = yearData.count > 0 ? yearData.flesch_reading_ease / yearData.count : lastFleschScore;
+    const avgSmog = yearData.count > 0 ? yearData.smog_index_score / yearData.count : lastSmogScore;
+    const avgAutomated = yearData.count > 0 ? yearData.automated_readability_score / yearData.count : lastAutomatedScore;
+
+    // Update last known scores
     if (yearData.count > 0) {
-      lastReadabilityScore = yearData.readability_score / yearData.count;
-      lastLanguageComplexityScore = yearData.language_complexity_score / yearData.count;
-      lastSimplicityScore = yearData.simplicity_score / yearData.count;
+      lastReadabilityScore = avgCombined;
+      lastFleschScore = avgFlesch;
+      lastSmogScore = avgSmog;
+      lastAutomatedScore = avgAutomated;
     }
 
     return {
@@ -165,11 +177,10 @@ const aggregateMetricsByYear = (metrics: AgencyMetric[]): AggregatedMetric[] => 
       cumulative_paragraph_count: cumulativeParagraphCount,
       sentence_count: yearData.sentence_count,
       cumulative_sentence_count: cumulativeSentenceCount,
-      section_count: yearData.section_count,
-      cumulative_section_count: cumulativeSectionCount,
-      avg_language_complexity_score: lastLanguageComplexityScore,
-      avg_readability_score: lastReadabilityScore,
-      avg_simplicity_score: lastSimplicityScore
+      avg_combined_readability_score: avgCombined,
+      avg_flesch_reading_ease: avgFlesch,
+      avg_smog_index_score: avgSmog,
+      avg_automated_readability_score: avgAutomated
     };
   });
 };
@@ -230,10 +241,10 @@ const AgencyDetailPage: React.FC = () => {
           word_count: latestMetrics.cumulative_word_count,
           paragraph_count: latestMetrics.cumulative_paragraph_count,
           sentence_count: latestMetrics.cumulative_sentence_count,
-          section_count: latestMetrics.cumulative_section_count,
-          language_complexity_score: latestMetrics.avg_language_complexity_score,
-          readability_score: latestMetrics.avg_readability_score,
-          simplicity_score: latestMetrics.avg_simplicity_score
+          combined_readability_score: latestMetrics.avg_combined_readability_score,
+          flesch_reading_ease: latestMetrics.avg_flesch_reading_ease,
+          smog_index_score: latestMetrics.avg_smog_index_score,
+          automated_readability_score: latestMetrics.avg_automated_readability_score
         });
 
       } catch (error: any) {
@@ -251,13 +262,9 @@ const AgencyDetailPage: React.FC = () => {
 
   // Define metrics for charts
   const metricDefinitions = [
-    { id: 'readability_score', label: 'Readability Score', color: 'rgb(53, 162, 235)' },
-    { id: 'simplicity_score', label: 'Simplicity Score', color: 'rgb(16, 185, 129)' },
-    { id: 'language_complexity_score', label: 'Language Complexity', color: 'rgb(245, 158, 11)' },
     { id: 'word_count', label: 'Word Count', color: 'rgb(99, 102, 241)' },
     { id: 'paragraph_count', label: 'Paragraph Count', color: 'rgb(236, 72, 153)' },
-    { id: 'sentence_count', label: 'Sentence Count', color: 'rgb(139, 92, 246)' },
-    { id: 'section_count', label: 'Section Count', color: 'rgb(248, 113, 113)' },
+    { id: 'sentence_count', label: 'Sentence Count', color: 'rgb(139, 92, 246)' }
   ];
 
   // Multi-metric chart data for readability metrics
@@ -265,28 +272,32 @@ const AgencyDetailPage: React.FC = () => {
     labels: aggregatedMetrics.map(m => m.year.toString()),
     datasets: [
       {
-        label: 'Average Readability Score',
-        data: aggregatedMetrics.map(m => m.avg_readability_score),
+        label: 'Combined Score',
+        data: aggregatedMetrics.map(m => m.avg_combined_readability_score),
         borderColor: 'rgb(53, 162, 235)',
         backgroundColor: 'rgba(53, 162, 235, 0.5)',
         tension: 0.3,
-        yAxisID: 'y',
       },
       {
-        label: 'Average Simplicity Score',
-        data: aggregatedMetrics.map(m => m.avg_simplicity_score),
+        label: 'Flesch Reading Ease',
+        data: aggregatedMetrics.map(m => m.avg_flesch_reading_ease),
         borderColor: 'rgb(16, 185, 129)',
         backgroundColor: 'rgba(16, 185, 129, 0.5)',
         tension: 0.3,
-        yAxisID: 'y',
       },
       {
-        label: 'Average Language Complexity',
-        data: aggregatedMetrics.map(m => m.avg_language_complexity_score),
+        label: 'SMOG Index',
+        data: aggregatedMetrics.map(m => m.avg_smog_index_score),
         borderColor: 'rgb(245, 158, 11)',
         backgroundColor: 'rgba(245, 158, 11, 0.5)',
         tension: 0.3,
-        yAxisID: 'y',
+      },
+      {
+        label: 'Automated Readability Index',
+        data: aggregatedMetrics.map(m => m.avg_automated_readability_score),
+        borderColor: 'rgb(239, 68, 68)',
+        backgroundColor: 'rgba(239, 68, 68, 0.5)',
+        tension: 0.3,
       },
     ],
   };
@@ -348,7 +359,7 @@ const AgencyDetailPage: React.FC = () => {
 
   // Function to create chart data for a specific metric
   const createChartData = (metricId: string, metricLabel: string, metricColor: string) => {
-    const isCountMetric = ['word_count', 'paragraph_count', 'sentence_count', 'section_count'].includes(metricId);
+    const isCountMetric = ['word_count', 'paragraph_count', 'sentence_count'].includes(metricId);
     const dataKey = isCountMetric ? `cumulative_${metricId}` : `avg_${metricId.replace('_score', '')}`;
     
     return {
@@ -497,12 +508,8 @@ const AgencyDetailPage: React.FC = () => {
   };
 
   // Calculate readability score for gauge (with fallback)
-  const readabilityScore = latestMetrics?.readability_score ?? 0;
-  const readabilityColor = 
-    readabilityScore > 80 ? "#10B981" : 
-    readabilityScore > 60 ? "#3B82F6" : 
-    readabilityScore > 40 ? "#F59E0B" : 
-    "#EF4444";
+  const readabilityScore = latestMetrics?.combined_readability_score ?? 0;
+  const { color: readabilityColor } = getReadabilityInterpretation(readabilityScore);
 
   return (
     <>
@@ -583,30 +590,45 @@ const AgencyDetailPage: React.FC = () => {
                     <p className="text-sm text-gray-400">Total Sentence Count</p>
                     <p className="text-2xl font-bold text-white">{formatCountValue(latestMetrics.sentence_count)}</p>
                   </div>
-                  <div>
-                    <p className="text-sm text-gray-400">Total Section Count</p>
-                    <p className="text-2xl font-bold text-white">{formatCountValue(latestMetrics.section_count)}</p>
-                  </div>
                 </div>
               </div>
               
               {/* Readability Metrics */}
-              <div className="bg-[#232939] rounded-lg p-4">
-                <h3 className="text-gray-300 text-sm font-medium mb-3 border-b border-gray-700 pb-2">Readability</h3>
+              <div className="bg-[#232939] rounded-lg p-6">
+                <h3 className="text-gray-300 text-sm font-medium mb-4 border-b border-gray-700 pb-2">Readability Scores</h3>
                 
-                <div className="mb-3">
-                  <p className="text-xs text-gray-400">Readability Score</p>
-                  <p className="text-xl font-bold text-white">{formatMetricValue(latestMetrics.readability_score)}</p>
-                </div>
-                
-                <div className="mb-3">
-                  <p className="text-xs text-gray-400">Simplicity Score</p>
-                  <p className="text-xl font-bold text-white">{formatMetricValue(latestMetrics.simplicity_score)}</p>
-                </div>
-                
-                <div>
-                  <p className="text-xs text-gray-400">Language Complexity</p>
-                  <p className="text-xl font-bold text-white">{formatMetricValue(latestMetrics.language_complexity_score)}</p>
+                <div className="space-y-4">
+                  <div>
+                    <div className="flex justify-between items-baseline mb-1">
+                      <p className="text-sm text-gray-400">Combined Score</p>
+                      <p className="text-xs text-gray-500">{getReadabilityInterpretation(latestMetrics?.combined_readability_score || 0).text}</p>
+                    </div>
+                    <p className="text-xl font-bold text-white">{formatMetricValue(latestMetrics?.combined_readability_score)}</p>
+                  </div>
+                  
+                  <div>
+                    <div className="flex justify-between items-baseline mb-1">
+                      <p className="text-sm text-gray-400">Flesch Reading Ease</p>
+                      <p className="text-xs text-gray-500">{getReadabilityInterpretation(latestMetrics?.flesch_reading_ease || 0).text}</p>
+                    </div>
+                    <p className="text-xl font-bold text-white">{formatMetricValue(latestMetrics?.flesch_reading_ease)}</p>
+                  </div>
+                  
+                  <div>
+                    <div className="flex justify-between items-baseline mb-1">
+                      <p className="text-sm text-gray-400">SMOG Index</p>
+                      <p className="text-xs text-gray-500">Grade level</p>
+                    </div>
+                    <p className="text-xl font-bold text-white">{formatMetricValue(latestMetrics?.smog_index_score)}</p>
+                  </div>
+                  
+                  <div>
+                    <div className="flex justify-between items-baseline mb-1">
+                      <p className="text-sm text-gray-400">Automated Readability Index</p>
+                      <p className="text-xs text-gray-500">Grade level</p>
+                    </div>
+                    <p className="text-xl font-bold text-white">{formatMetricValue(latestMetrics?.automated_readability_score)}</p>
+                  </div>
                 </div>
               </div>
               

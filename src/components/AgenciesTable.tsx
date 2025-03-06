@@ -14,15 +14,17 @@ interface Agency {
     paragraph_count: number;
     sentence_count: number;
     section_count: number;
-    readability_score: number;
-    language_complexity_score: number;
-    simplicity_score: number;
+    combined_readability_score: number;
+    flesch_reading_ease: number;
+    smog_index_score: number;
+    automated_readability_score: number;
     year: number;
   } | null;
 }
 
 type MetricKey = 'word_count' | 'paragraph_count' | 'sentence_count' | 'section_count' | 
-                'readability_score' | 'language_complexity_score' | 'simplicity_score';
+                'combined_readability_score' | 'flesch_reading_ease' | 'smog_index_score' | 
+                'automated_readability_score';
 
 interface MetricOption {
   key: MetricKey;
@@ -71,9 +73,34 @@ function useCountUp(endValue: number, duration: number = 1000) {
   return count;
 }
 
-// Separate component for animated metric display
-function MetricDisplay({ label, value, year }: { label: string; value: number | null; year?: number }) {
+// Update the MetricDisplay component to handle readability scores
+function MetricDisplay({ 
+  label, 
+  value, 
+  year, 
+  isReadabilityMetric = false 
+}: { 
+  label: string; 
+  value: number | null; 
+  year?: number;
+  isReadabilityMetric?: boolean;
+}) {
   const animatedValue = useCountUp(value || 0);
+  
+  if (isReadabilityMetric) {
+    const { text: interpretation } = getReadabilityInterpretation(value || 0);
+    return (
+      <div>
+        <div className="flex justify-between items-baseline">
+          <p className="text-xs text-gray-400">{label}</p>
+          <p className="text-xs text-gray-500">{interpretation}</p>
+        </div>
+        <p className="text-lg font-bold text-white">
+          {value ? value.toFixed(1) : 'No data'}
+        </p>
+      </div>
+    );
+  }
   
   return (
     <div>
@@ -87,6 +114,15 @@ function MetricDisplay({ label, value, year }: { label: string; value: number | 
   );
 }
 
+// Add helper function for readability interpretation
+function getReadabilityInterpretation(score: number): { text: string; color: string } {
+  if (score >= 90) return { text: 'Very easy to read', color: '#10B981' };
+  if (score >= 70) return { text: 'Easy to read', color: '#3B82F6' };
+  if (score >= 50) return { text: 'Fairly difficult', color: '#F59E0B' };
+  if (score >= 30) return { text: 'Difficult', color: '#EF4444' };
+  return { text: 'Very difficult', color: '#991B1B' };
+}
+
 export function AgenciesGrid() {
   const [agencies, setAgencies] = useState<Agency[]>([]);
   const [loading, setLoading] = useState(true);
@@ -97,8 +133,10 @@ export function AgenciesGrid() {
 
   const metricOptions: MetricOption[] = [
     { key: 'word_count', label: 'Word Count', format: (value) => value.toLocaleString() },
-    { key: 'paragraph_count', label: 'Paragraph Count', format: (value) => value.toLocaleString() },
     { key: 'sentence_count', label: 'Sentence Count', format: (value) => value.toLocaleString() },
+    { key: 'paragraph_count', label: 'Paragraph Count', format: (value) => value.toLocaleString() },
+    { key: 'combined_readability_score', label: 'Combined Readability', format: (value) => value.toFixed(1) },
+    { key: 'flesch_reading_ease', label: 'Flesch Reading Ease', format: (value) => value.toFixed(1) }
   ];
 
   useEffect(() => {
@@ -106,34 +144,24 @@ export function AgenciesGrid() {
       try {
         setLoading(true);
         
-        // Fetch agencies
         const { data: agenciesData, error: agenciesError } = await supabase
           .from('agencies')
           .select('id, name, short_name, display_name, sortable_name, slug');
         
-        if (agenciesError) {
-          throw agenciesError;
-        }
+        if (agenciesError) throw agenciesError;
         
-        // Fetch ALL metrics for each agency
         const { data: metricsData, error: metricsError } = await supabase
           .from('agency_regulation_document_historical_metrics')
-          .select('agency_id, word_count, paragraph_count, sentence_count, metrics_date');
+          .select('agency_id, word_count, paragraph_count, sentence_count, combined_readability_score, flesch_reading_ease, smog_index_score, automated_readability_score, metrics_date');
         
         if (metricsError) {
           console.warn('Error fetching metrics:', metricsError);
         }
         
-        // Create a map of agency_id to summed metrics
-        const metricsMap = new Map<number, {
-          word_count: number;
-          paragraph_count: number;
-          sentence_count: number;
-          year: number;  // We'll keep the latest year for reference
-        }>();
+        // Create a map of agency_id to metrics
+        const metricsMap = new Map();
         
         if (metricsData) {
-          // First, sort by date to ensure we get the latest year
           const sortedMetrics = metricsData.sort((a, b) => 
             new Date(b.metrics_date).getTime() - new Date(a.metrics_date).getTime()
           );
@@ -141,35 +169,53 @@ export function AgenciesGrid() {
           sortedMetrics.forEach(metric => {
             const metricYear = new Date(metric.metrics_date).getFullYear();
             if (!metricsMap.has(metric.agency_id)) {
-              // Initialize new agency metrics
               metricsMap.set(metric.agency_id, {
                 word_count: 0,
                 paragraph_count: 0,
                 sentence_count: 0,
-                year: metricYear  // This will be the latest year since we sorted
+                combined_readability_score: 0,
+                flesch_reading_ease: 0,
+                smog_index_score: 0,
+                automated_readability_score: 0,
+                count: 0,
+                year: metricYear
               });
             }
             
-            // Get existing metrics and add current metrics
-            const existingMetrics = metricsMap.get(metric.agency_id)!;
-            existingMetrics.word_count += metric.word_count;
-            existingMetrics.paragraph_count += metric.paragraph_count;
-            existingMetrics.sentence_count += metric.sentence_count;
+            const existingMetrics = metricsMap.get(metric.agency_id);
+            existingMetrics.word_count += metric.word_count || 0;
+            existingMetrics.paragraph_count += metric.paragraph_count || 0;
+            existingMetrics.sentence_count += metric.sentence_count || 0;
+            
+            // For readability scores, we'll calculate averages
+            existingMetrics.combined_readability_score += metric.combined_readability_score || 0;
+            existingMetrics.flesch_reading_ease += metric.flesch_reading_ease || 0;
+            existingMetrics.smog_index_score += metric.smog_index_score || 0;
+            existingMetrics.automated_readability_score += metric.automated_readability_score || 0;
+            existingMetrics.count += 1;
+          });
+
+          // Calculate averages for readability scores
+          metricsMap.forEach(metrics => {
+            if (metrics.count > 0) {
+              metrics.combined_readability_score /= metrics.count;
+              metrics.flesch_reading_ease /= metrics.count;
+              metrics.smog_index_score /= metrics.count;
+              metrics.automated_readability_score /= metrics.count;
+            }
           });
         }
         
-        // Combine agency data with summed metrics
         const agenciesWithMetrics = agenciesData?.map(agency => ({
           ...agency,
           metrics: metricsMap.get(agency.id) || null
         })) || [];
-        console.log('Agencies with summed metrics:', agenciesWithMetrics);
+        
         setAgencies(agenciesWithMetrics as Agency[]);
       } catch (error: any) {
         console.error('Error fetching agencies:', error);
         setError(error.message);
       } finally {
-        setLoading(false);
         setLoading(false);
       }
     }
@@ -297,14 +343,30 @@ export function AgenciesGrid() {
                   />
                   
                   <MetricDisplay 
-                    label="Total Paragraph Count"
-                    value={agency.metrics?.paragraph_count ?? null}
-                  />
-                  
-                  <MetricDisplay 
                     label="Total Sentence Count"
                     value={agency.metrics?.sentence_count ?? null}
                   />
+                  
+                  <MetricDisplay 
+                    label="Total Paragraph Count"
+                    value={agency.metrics?.paragraph_count ?? null}
+                  />
+
+                  <div className="mt-4 pt-4 border-t border-gray-700">
+                    <MetricDisplay 
+                      label="Combined Readability"
+                      value={agency.metrics?.combined_readability_score ?? null}
+                      isReadabilityMetric={true}
+                    />
+                    
+                    <div className="mt-2">
+                      <MetricDisplay 
+                        label="Flesch Reading Ease"
+                        value={agency.metrics?.flesch_reading_ease ?? null}
+                        isReadabilityMetric={true}
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
