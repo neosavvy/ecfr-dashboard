@@ -380,7 +380,7 @@ const AgencyDetailPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-6 bg-[#171c2e] min-h-screen">
+      <div className="container mx-auto px-4 py-6">
         <div className="flex justify-center items-center p-8">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400"></div>
         </div>
@@ -390,7 +390,7 @@ const AgencyDetailPage: React.FC = () => {
 
   if (error || !agency) {
     return (
-      <div className="container mx-auto px-4 py-6 bg-[#171c2e] min-h-screen">
+      <div className="container mx-auto px-4 py-6">
         <div className="p-4 text-center text-red-400 bg-[#2a1c24] rounded-md">
           {error || "Agency not found"}
         </div>
@@ -402,6 +402,25 @@ const AgencyDetailPage: React.FC = () => {
   const cfrReferencesText = agency.cfr_references?.map(ref => 
     `Title ${ref.title}, Chapter ${ref.chapter}`
   ).join('; ');
+
+  // Safe rendering helper functions
+  const formatMetricValue = (value: number | undefined | null, decimals = 2) => {
+    if (value === undefined || value === null) return 'N/A';
+    return typeof value === 'number' ? value.toFixed(decimals) : 'N/A';
+  };
+
+  const formatCountValue = (value: number | undefined | null) => {
+    if (value === undefined || value === null) return 'N/A';
+    return typeof value === 'number' ? value.toLocaleString() : 'N/A';
+  };
+
+  // Calculate readability score for gauge (with fallback)
+  const readabilityScore = latestMetrics?.readability_score ?? 0;
+  const readabilityColor = 
+    readabilityScore > 80 ? "#10B981" : 
+    readabilityScore > 60 ? "#3B82F6" : 
+    readabilityScore > 40 ? "#F59E0B" : 
+    "#EF4444";
 
   return (
     <>
@@ -489,17 +508,17 @@ const AgencyDetailPage: React.FC = () => {
                 
                 <div className="mb-3">
                   <p className="text-xs text-gray-400">Word Count</p>
-                  <p className="text-xl font-bold text-white">{latestMetrics.word_count.toLocaleString()}</p>
+                  <p className="text-xl font-bold text-white">{formatCountValue(latestMetrics.word_count)}</p>
                 </div>
                 
                 <div className="mb-3">
                   <p className="text-xs text-gray-400">Paragraph Count</p>
-                  <p className="text-xl font-bold text-white">{latestMetrics.paragraph_count.toLocaleString()}</p>
+                  <p className="text-xl font-bold text-white">{formatCountValue(latestMetrics.paragraph_count)}</p>
                 </div>
                 
                 <div>
                   <p className="text-xs text-gray-400">Sentence Count</p>
-                  <p className="text-xl font-bold text-white">{latestMetrics.sentence_count.toLocaleString()}</p>
+                  <p className="text-xl font-bold text-white">{formatCountValue(latestMetrics.sentence_count)}</p>
                 </div>
               </div>
               
@@ -509,17 +528,17 @@ const AgencyDetailPage: React.FC = () => {
                 
                 <div className="mb-3">
                   <p className="text-xs text-gray-400">Readability Score</p>
-                  <p className="text-xl font-bold text-white">{latestMetrics.readability_score.toFixed(2)}</p>
+                  <p className="text-xl font-bold text-white">{formatMetricValue(latestMetrics.readability_score)}</p>
                 </div>
                 
                 <div className="mb-3">
                   <p className="text-xs text-gray-400">Simplicity Score</p>
-                  <p className="text-xl font-bold text-white">{latestMetrics.simplicity_score.toFixed(2)}</p>
+                  <p className="text-xl font-bold text-white">{formatMetricValue(latestMetrics.simplicity_score)}</p>
                 </div>
                 
                 <div>
                   <p className="text-xs text-gray-400">Language Complexity</p>
-                  <p className="text-xl font-bold text-white">{latestMetrics.language_complexity_score.toFixed(2)}</p>
+                  <p className="text-xl font-bold text-white">{formatMetricValue(latestMetrics.language_complexity_score)}</p>
                 </div>
               </div>
               
@@ -529,20 +548,20 @@ const AgencyDetailPage: React.FC = () => {
                 
                 <div className="mb-3">
                   <p className="text-xs text-gray-400">Section Count</p>
-                  <p className="text-xl font-bold text-white">{latestMetrics.section_count.toLocaleString()}</p>
+                  <p className="text-xl font-bold text-white">{formatCountValue(latestMetrics.section_count)}</p>
                 </div>
                 
-                {latestMetrics.average_sentence_length && (
+                {latestMetrics.average_sentence_length !== undefined && latestMetrics.average_sentence_length !== null && (
                   <div className="mb-3">
                     <p className="text-xs text-gray-400">Avg. Sentence Length</p>
-                    <p className="text-xl font-bold text-white">{latestMetrics.average_sentence_length.toFixed(1)} words</p>
+                    <p className="text-xl font-bold text-white">{formatMetricValue(latestMetrics.average_sentence_length, 1)} words</p>
                   </div>
                 )}
                 
-                {latestMetrics.average_word_length && (
+                {latestMetrics.average_word_length !== undefined && latestMetrics.average_word_length !== null && (
                   <div>
                     <p className="text-xs text-gray-400">Avg. Word Length</p>
-                    <p className="text-xl font-bold text-white">{latestMetrics.average_word_length.toFixed(1)} chars</p>
+                    <p className="text-xl font-bold text-white">{formatMetricValue(latestMetrics.average_word_length, 1)} chars</p>
                   </div>
                 )}
               </div>
@@ -567,14 +586,9 @@ const AgencyDetailPage: React.FC = () => {
                       <circle 
                         cx="50" cy="50" r="45" 
                         fill="transparent" 
-                        stroke={
-                          latestMetrics.readability_score > 80 ? "#10B981" : 
-                          latestMetrics.readability_score > 60 ? "#3B82F6" : 
-                          latestMetrics.readability_score > 40 ? "#F59E0B" : 
-                          "#EF4444"
-                        } 
+                        stroke={readabilityColor} 
                         strokeWidth="10" 
-                        strokeDasharray={`${latestMetrics.readability_score * 2.83} 283`} 
+                        strokeDasharray={`${readabilityScore * 2.83} 283`} 
                         strokeDashoffset="0" 
                         strokeLinecap="round" 
                         transform="rotate(-90 50 50)" 
@@ -589,7 +603,7 @@ const AgencyDetailPage: React.FC = () => {
                         fontWeight="bold" 
                         fill="white"
                       >
-                        {Math.round(latestMetrics.readability_score)}
+                        {Math.round(readabilityScore)}
                       </text>
                       <text 
                         x="50" y="65" 
